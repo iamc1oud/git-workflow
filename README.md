@@ -1,4 +1,4 @@
-# CodeFinder
+# git-workflow
 
 > **Stop hunting through Finder.** Organize your local git repositories into folders, see commits, branches and contributors at a glance, and launch any repo in your favorite editor — all from one fast, keyboard-first macOS app.
 
