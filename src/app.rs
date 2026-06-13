@@ -150,7 +150,7 @@ pub fn App() -> Element {
             }
 
             // ── Main layout ───────────────────────────────────────────────────
-            div { class: "layout",
+            div { class: "body",
                 // Sidebar
                 Sidebar {
                     sel,
@@ -182,6 +182,7 @@ pub fn App() -> Element {
                         repos: visible_repos,
                         folders: folders.read().clone(),
                         sel,
+                        search: search,
                         on_open: move |r: RepoSummary| {
                             sel.set(Selection::repo(&r.id));
                         },
