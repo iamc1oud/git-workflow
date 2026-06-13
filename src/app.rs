@@ -38,10 +38,17 @@ pub fn App() -> Element {
     };
 
     rsx! {
+        div {
+            class: "window",
+            TitleBar {}
+            div {
+                class: "content"
+            }
+        }
         link { rel: "stylesheet", href: CSS }
         main {
             class: "container",
-            h1 { "Welcome to Tauri + Dioxus" }
+            h1 { "Welcome to Git Workflow" }
 
             div {
                 class: "row",
@@ -78,6 +85,75 @@ pub fn App() -> Element {
                 button { r#type: "submit", "Greet" }
             }
             p { "{greet_msg}" }
+        }
+    }
+}
+
+// Title Bar component
+#[component]
+fn TitleBar() -> Element {
+    rsx! {
+        div {
+            class: "titlebar",
+
+            TrafficLights {}
+
+            div {
+                class: "brand",
+
+                div {
+                    class: "logo",
+                    "</>"
+                }
+
+                span { "CodeFinder" }
+            }
+
+            SearchBar {}
+
+            div {
+                class: "actions",
+
+                button { "🌙" }
+                button { "⚙" }
+            }
+        }
+    }
+}
+
+#[component]
+fn TrafficLights() -> Element {
+    rsx! {
+        div {
+            class: "traffic-lights",
+
+            div { class: "dot red" }
+            div { class: "dot yellow" }
+            div { class: "dot green" }
+        }
+    }
+}
+
+#[component]
+fn SearchBar() -> Element {
+    rsx! {
+        div {
+            class: "search-container",
+
+            span {
+                class: "search-icon",
+                "🔍"
+            }
+
+            input {
+                class: "search-input",
+                placeholder: "Search repos & commands"
+            }
+
+            div {
+                class: "shortcut",
+                "⌘K"
+            }
         }
     }
 }
