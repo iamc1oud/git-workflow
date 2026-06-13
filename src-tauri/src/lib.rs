@@ -1,22 +1,58 @@
+use std::sync::Mutex;
+
 use tauri::Manager;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+mod commands;
+mod git;
+mod ide;
+mod models;
+mod store;
+
+use commands::AppState;
+use store::Store;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // tauri::Builder::default()
-    //     .plugin(tauri_plugin_opener::init())
-    //     .invoke_handler(tauri::generate_handler![greet])
-    //     .run(tauri::generate_context!())
-    //     .expect("error while running tauri application");
-    tauri::Builder::default().setup(|app| {
-        let window = app.get_webview_window("main").unwrap();
-        window.set_decorations(false)?;
-        Ok(())
-    }).run(tauri::generate_context!())
+    tauri::Builder::default()
+        .setup(|app| {
+            let window = app.get_webview_window("main").unwrap();
+            window.set_decorations(false)?;
+
+            let data_dir = app
+                .path()
+                .app_data_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from(".codefinder"));
+
+            app.manage(Mutex::new(AppState { store: Store::load(data_dir) }));
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            // folders
+            commands::list_folders,
+            commands::add_folder,
+            commands::remove_folder,
+            // repos
+            commands::list_repos,
+            commands::list_all_repos,
+            commands::add_repo,
+            commands::remove_repo,
+            commands::get_repo_detail,
+            commands::get_commits,
+            commands::get_status,
+            commands::toggle_favorite,
+            commands::update_description,
+            // editors
+            commands::detect_ides,
+            commands::add_custom_editor,
+            commands::remove_custom_editor,
+            commands::open_in,
+            // git actions
+            commands::fetch,
+            commands::pull,
+            // scan
+            commands::scan_dir,
+        ])
+        .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
