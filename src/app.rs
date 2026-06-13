@@ -125,15 +125,6 @@ pub fn App() -> Element {
         div { class: "win",
             // ── Titlebar ──────────────────────────────────────────────────────
             div { class: "titlebar",
-                div { class: "traffic",
-                    div { class: "dot red" }
-                    div { class: "dot yellow" }
-                    div { class: "dot green" }
-                }
-                div { class: "tb-brand",
-                    span { class: "tb-logo", "</>" }
-                    span { class: "tb-title", "CodeFinder" }
-                }
                 // Search (in appbar)
                 div { class: "tb-search",
                     span { dangerous_inner_html: "{icon_html(\"search\", 13)}" }

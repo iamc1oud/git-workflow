@@ -112,6 +112,7 @@ body {
 .tb-logo { width: 19px; height: 19px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: grid; place-items: center; color: #fff; box-shadow: 0 2px 10px -2px var(--accent); }
 .tb-spacer { flex: 1; }
 .tb-search {
+  position: absolute; left: 50%; transform: translateX(-50%);
   width: min(360px, 34vw); height: 30px; display: flex; align-items: center; gap: 8px;
   background: var(--s2); border: 1px solid var(--border); border-radius: 8px;
   padding: 0 10px; color: var(--text-3); font-size: 12.5px; cursor: text; white-space: nowrap;
