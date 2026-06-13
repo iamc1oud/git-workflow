@@ -1,4 +1,4 @@
-# CodeFinder
+# Git Workflow
 
 A native macOS desktop app for managing local Git repositories. Organize repos into folders, view git state at a glance, and open any repo in any IDE — all with one keystroke.
 
