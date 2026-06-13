@@ -19,7 +19,6 @@ pub fn DetailPanel(
     let mut loading = use_signal(|| true);
 
     let path = repo.path.clone();
-    let path2 = path.clone();
 
     use_effect(move || {
         let p = path.clone();
@@ -40,36 +39,6 @@ pub fn DetailPanel(
                 repo: repo.clone(),
                 editors: editors.clone(),
                 toasts,
-                on_fetch: {
-                    let path = path2.clone();
-                    move |_| {
-                        let p = path.clone();
-                        spawn(async move {
-                            if let Some(r) = invoke::fetch_repo(p.clone()).await {
-                                let mut t = toasts.write();
-                                t.push(Toast::new(
-                                    if r.success { "Fetched" } else { "Fetch failed" },
-                                    &r.message,
-                                ));
-                            }
-                        });
-                    }
-                },
-                on_pull: {
-                    let p = path2.clone();
-                    move |_| {
-                        let p = p.clone();
-                        spawn(async move {
-                            if let Some(r) = invoke::pull_repo(p).await {
-                                let mut t = toasts.write();
-                                t.push(Toast::new(
-                                    if r.success { "Pulled" } else { "Pull failed" },
-                                    &r.message,
-                                ));
-                            }
-                        });
-                    }
-                },
             }
 
             // Tabs
@@ -115,14 +84,16 @@ fn DetailHeader(
     repo: RepoSummary,
     editors: Vec<Editor>,
     toasts: Signal<Vec<Toast>>,
-    on_fetch: EventHandler,
-    on_pull: EventHandler,
 ) -> Element {
     let glyph = glyph_for(&repo.name);
     let repo2 = repo.clone();
     let mut editor_dropdown_open = use_signal(|| false);
+    let mut fetching = use_signal(|| false);
+    let mut pulling = use_signal(|| false);
     let primary_ed = editors.first().cloned();
     let has_more_editors = editors.len() > 1;
+    let fetch_path = repo.path.clone();
+    let pull_path = repo.path.clone();
 
     rsx! {
         div { class: "detail-head",
@@ -206,18 +177,52 @@ fn DetailHeader(
                     }
                 }
                 button {
-                    class: "btn",
+                    class: if *fetching.read() { "btn btn-syncing" } else { "btn" },
                     title: "Fetch",
-                    onclick: move |_| on_fetch.call(()),
-                    span { dangerous_inner_html: "{icon_html(\"refresh\", 16)}" }
-                    "Fetch"
+                    disabled: *fetching.read() || *pulling.read(),
+                    onclick: {
+                        let p = fetch_path.clone();
+                        move |_| {
+                            let p = p.clone();
+                            spawn(async move {
+                                fetching.set(true);
+                                if let Some(r) = invoke::fetch_repo(p).await {
+                                    let mut t = toasts.write();
+                                    t.push(Toast::new(
+                                        if r.success { "Fetched" } else { "Fetch failed" },
+                                        &r.message,
+                                    ));
+                                }
+                                fetching.set(false);
+                            });
+                        }
+                    },
+                    span { class: if *fetching.read() { "spin" } else { "" }, dangerous_inner_html: "{icon_html(\"refresh\", 16)}" }
+                    if *fetching.read() { "Fetching…" } else { "Fetch" }
                 }
                 button {
-                    class: "btn",
+                    class: if *pulling.read() { "btn btn-syncing" } else { "btn" },
                     title: "Pull",
-                    onclick: move |_| on_pull.call(()),
-                    span { dangerous_inner_html: "{icon_html(\"arrowDown\", 14)}" }
-                    "Pull"
+                    disabled: *fetching.read() || *pulling.read(),
+                    onclick: {
+                        let p = pull_path.clone();
+                        move |_| {
+                            let p = p.clone();
+                            spawn(async move {
+                                pulling.set(true);
+                                if let Some(r) = invoke::pull_repo(p).await {
+                                    let mut t = toasts.write();
+                                    t.push(Toast::new(
+                                        if r.success { "Pulled" } else { "Pull failed" },
+                                        &r.message,
+                                    ));
+                                }
+                                pulling.set(false);
+                            });
+                        }
+                    },
+                    span { class: if *pulling.read() { "spin" } else { "" }, dangerous_inner_html: "{icon_html(\"arrowDown\", 14)}" }
+                    if *pulling.read() { "Pulling…" } else { "Pull" }
                 }
                 button {
                     class: "tb-btn",
@@ -588,6 +593,19 @@ fn ContribsTab(contributors: Vec<Contributor>) -> Element {
 
 // ── README tab ────────────────────────────────────────────────────────────────
 
+fn md_to_html(src: &str) -> String {
+    use pulldown_cmark::{html, Event, Options, Parser};
+    let mut opts = Options::empty();
+    opts.insert(Options::ENABLE_TABLES);
+    opts.insert(Options::ENABLE_STRIKETHROUGH);
+    // Strip raw HTML blocks and inline HTML to prevent XSS from untrusted README files.
+    let parser = Parser::new_ext(src, opts)
+        .filter(|e| !matches!(e, Event::Html(_) | Event::InlineHtml(_)));
+    let mut out = String::new();
+    html::push_html(&mut out, parser);
+    out
+}
+
 #[component]
 fn ReadmeTab(readme: String) -> Element {
     if readme.is_empty() {
@@ -598,9 +616,16 @@ fn ReadmeTab(readme: String) -> Element {
             }
         };
     }
+    let html = md_to_html(&readme);
     rsx! {
-        div { class: "readme-body prose",
-            pre { class: "readme-raw", "{readme}" }
+        div { class: "readme-wrap",
+            div { class: "ov-card",
+                div { class: "ov-card-hdr",
+                    span { class: "ov-card-ico", dangerous_inner_html: "{icon_html(\"book\", 13)}" }
+                    "README.MD"
+                }
+                div { class: "md readme-content", dangerous_inner_html: "{html}" }
+            }
         }
     }
 }

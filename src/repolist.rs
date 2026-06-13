@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 use crate::{
     icons::icon_html,
     models::*,
-    shared::{AvatarStack, StatusPill},
+    shared::StatusPill,
 };
 
 #[component]
