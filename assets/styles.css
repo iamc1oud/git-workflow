@@ -67,8 +67,8 @@ body {
     var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
-  display: flex; align-items: flex-start; justify-content: flex-start;
-  min-height: 100vh; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 26px;
   overflow: auto;
 }
 #main { width: 100%; height: 100%; display: flex; align-items: stretch; justify-content: center; }
@@ -83,12 +83,11 @@ body {
 
 /* ============ WINDOW CHROME ============ */
 .win {
-  /* Use full-bleed layout: remove outer chrome so app fills container */
-  width: 100%; height: 100vh;
+  width: min(1340px, 100%); height: min(860px, 100%);
   background: var(--s0);
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
   display: flex; flex-direction: column;
   overflow: hidden; position: relative;
 }
