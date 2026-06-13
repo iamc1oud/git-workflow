@@ -14,6 +14,7 @@ use store::Store;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             // re-enable native window decorations so OS app bar is visible
@@ -53,6 +54,11 @@ pub fn run() {
             commands::pull,
             // scan
             commands::scan_dir,
+            // shell helpers
+            commands::open_terminal,
+            commands::open_folder,
+            // dialog
+            commands::pick_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

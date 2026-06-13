@@ -72,6 +72,10 @@ pub async fn pull_repo(path: String) -> Option<SyncResult> {
     call("pull", Args { path }).await
 }
 
+pub async fn pick_folder() -> Option<String> {
+    call("pick_folder", ()).await
+}
+
 pub async fn scan_dir(parent: String) -> Vec<String> {
     #[derive(Serialize)]
     struct Args { parent: String }

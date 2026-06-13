@@ -289,3 +289,60 @@ pub fn pull(path: String, state: State<Mutex<AppState>>) -> Result<SyncResult, S
 pub fn scan_dir(parent: String) -> Vec<String> {
     git::scan_dir_for_repos(&parent)
 }
+
+// ── Folder picker ─────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn pick_folder(app: tauri::AppHandle) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .pick_folder(move |path| {
+            let _ = tx.send(path);
+        });
+    rx.await.ok().flatten().map(|p| p.to_string())
+}
+
+// ── Shell helpers ─────────────────────────────────────────────────────────────
+
+fn safe_dir(path: &str) -> Option<std::path::PathBuf> {
+    // Reject flag-like paths, then canonicalize and confirm it's a directory.
+    if path.starts_with('-') { return None; }
+    let canon = std::fs::canonicalize(path).ok()?;
+    if canon.is_dir() { Some(canon) } else { None }
+}
+
+#[tauri::command]
+pub fn open_terminal(path: String) {
+    let Some(dir) = safe_dir(&path) else { return };
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open")
+        .args(["-a", "Terminal"])
+        .arg(&dir)
+        .spawn();
+    // Windows: no shell interpolation — set working dir, let cmd start there.
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("cmd")
+        .args(["/c", "start", "", "cmd"])
+        .current_dir(&dir)
+        .spawn();
+    // Linux: open a shell in the directory, never pass path as an argument.
+    #[cfg(target_os = "linux")]
+    let _ = std::process::Command::new("xterm")
+        .args(["-e", std::env::var("SHELL").as_deref().unwrap_or("/bin/sh")])
+        .current_dir(&dir)
+        .spawn();
+}
+
+#[tauri::command]
+pub fn open_folder(path: String) {
+    let Some(dir) = safe_dir(&path) else { return };
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open").arg(&dir).spawn();
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("explorer").arg(&dir).spawn();
+    // xdg-open: pass "--" to prevent path being parsed as a flag.
+    #[cfg(target_os = "linux")]
+    let _ = std::process::Command::new("xdg-open").arg("--").arg(&dir).spawn();
+}

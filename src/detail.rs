@@ -4,7 +4,7 @@ use crate::{
     icons::icon_html,
     invoke,
     models::*,
-    shared::{Avatar, AvatarStack, Icon, StatusPill, Toast},
+    shared::{Avatar, AvatarStack, StatusPill, Toast},
 };
 
 #[component]
@@ -95,7 +95,7 @@ pub fn DetailPanel(
                         "branches" => rsx! { BranchesTab { branches: d.branches.clone() } },
                         "contribs" => rsx! { ContribsTab { contributors: d.contributors.clone() } },
                         "readme" => rsx! { ReadmeTab { readme: d.readme.clone() } },
-                        _ => rsx! { OverviewTab { detail: d, repo: repo.clone() } },
+                        _ => rsx! { OverviewTab { detail: d, repo: repo.clone(), tab } },
                     }
                 } else {
                     div { class: "empty-state",
@@ -126,35 +126,35 @@ fn DetailHeader(
 
     rsx! {
         div { class: "detail-head",
-            div { class: "dh-left",
-                div { class: "dh-glyph", style: "background:#7C6BFF",
-                    "{glyph}"
-                }
-                div { class: "dh-info",
-                    div { class: "dh-name", "{repo.name}" }
-                    div { class: "dh-sub",
-                        if !repo.remote.is_empty() {
-                            a {
-                                class: "dh-remote",
-                                href: "#",
-                                onclick: |e| e.prevent_default(),
-                                span { dangerous_inner_html: "{icon_html(\"external\", 11)}" }
-                                "{repo.remote}"
-                            }
+            // ── Top: glyph + info ─────────────────────────────────────────────
+            div { class: "dh-top",
+                div { class: "dh-glyph", style: "background:#7C6BFF", "{glyph}" }
+                div { class: "dh-titles",
+                    // Name row: name + star + status pill
+                    div { class: "dh-name",
+                        span { "{repo.name}" }
+                        if repo.favorite {
+                            span { class: "dh-star", dangerous_inner_html: "{icon_html(\"star\", 16)}" }
                         }
+                        StatusPill { repo: repo2.clone() }
                     }
+                    // Description
+                    if !repo.description.is_empty() {
+                        div { class: "dh-desc", "{repo.description}" }
+                    }
+                    // Path
                     if !repo.path.is_empty() {
-                        div { class: "dh-path", style: "margin-top:8px",
-                            span { dangerous_inner_html: "{icon_html(\"folder\", 11)}" }
-                            span { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap", "{repo.path}" }
+                        div { class: "dh-path",
+                            span { class: "icon-inline", dangerous_inner_html: "{icon_html(\"folder\", 11)}" }
+                            span { class: "mono", style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap", "{repo.path}" }
                         }
                     }
                 }
             }
+
+            // ── Actions row ───────────────────────────────────────────────────
             div { class: "dh-actions",
-                StatusPill { repo: repo2.clone() }
-                
-                // Open in editor dropdown
+                // Open in editor (split button)
                 if let Some(ref primary_ed) = primary_ed {
                     div { class: "split",
                         button {
@@ -177,7 +177,7 @@ fn DetailHeader(
                             button {
                                 class: "btn-primary",
                                 style: "background:{primary_ed.accent};border-color:{primary_ed.accent}",
-                                title: "Open in other editors",
+                                title: "More editors",
                                 onclick: move |_| editor_dropdown_open.toggle(),
                                 span { dangerous_inner_html: "{icon_html(\"chevronDown\", 14)}" }
                             }
@@ -205,15 +205,15 @@ fn DetailHeader(
                         }
                     }
                 }
-                
                 button {
-                    class: "tb-btn",
+                    class: "btn",
                     title: "Fetch",
                     onclick: move |_| on_fetch.call(()),
                     span { dangerous_inner_html: "{icon_html(\"refresh\", 16)}" }
+                    "Fetch"
                 }
                 button {
-                    class: "btn-primary",
+                    class: "btn",
                     title: "Pull",
                     onclick: move |_| on_pull.call(()),
                     span { dangerous_inner_html: "{icon_html(\"arrowDown\", 14)}" }
@@ -251,80 +251,218 @@ fn DetailHeader(
 // ── Overview tab ──────────────────────────────────────────────────────────────
 
 #[component]
-fn OverviewTab(detail: RepoDetail, repo: RepoSummary) -> Element {
+fn OverviewTab(detail: RepoDetail, repo: RepoSummary, tab: Signal<&'static str>) -> Element {
     let s = &repo.status;
+    let more_files = if s.files.len() > 5 { s.files.len() - 5 } else { 0 };
+    let total_commits: u32 = detail.contributors.iter().map(|c| c.commits).sum();
+    let fetched = from_now(&repo.last_fetched);
+    let fetched_text = if fetched.is_empty() { "Never".to_string() } else { fetched };
+    let contrib_count = detail.contributors.len();
+
     rsx! {
         div { class: "overview",
-            // Stat cards row
-            div { class: "stat-row",
-                StatCard { label: "Branch", value: repo.branch.clone(), icon: "branch" }
-                StatCard { label: "Staged", value: s.staged.to_string(), icon: "diff" }
-                StatCard { label: "Modified", value: s.modified.to_string(), icon: "diff" }
-                StatCard { label: "Untracked", value: s.untracked.to_string(), icon: "diff" }
-                if s.ahead > 0 || s.behind > 0 {
-                    StatCard { label: "Ahead", value: s.ahead.to_string(), icon: "arrowUp" }
-                    StatCard { label: "Behind", value: s.behind.to_string(), icon: "arrowDown" }
+            // Top grid: Working Tree + Sync
+            div { class: "ov-top-grid",
+                // Working Tree
+                div { class: "ov-card",
+                    div { class: "ov-card-hdr",
+                        span { class: "ov-card-ico", dangerous_inner_html: "{icon_html(\"diff\", 13)}" }
+                        span { "WORKING TREE" }
+                        span { class: "ov-branch-tag",
+                            span { dangerous_inner_html: "{icon_html(\"branch\", 11)}" }
+                            span { class: "mono", "{repo.branch}" }
+                        }
+                    }
+                    div { class: "ov-card-body",
+                        div { class: "wt-chips",
+                            if s.staged > 0 {
+                                span { class: "wt-chip wt-staged", "• {s.staged} staged" }
+                            }
+                            if s.modified > 0 {
+                                span { class: "wt-chip wt-modified", "• {s.modified} modified" }
+                            }
+                            if s.untracked > 0 {
+                                span { class: "wt-chip wt-untracked", "• {s.untracked} untracked" }
+                            }
+                            if s.staged == 0 && s.modified == 0 && s.untracked == 0 {
+                                span { class: "wt-chip wt-clean", "• Clean" }
+                            }
+                        }
+                        if !s.files.is_empty() {
+                            div { class: "wt-files",
+                                for f in s.files.iter().take(5) {
+                                    div { class: "wt-file-row",
+                                        span { class: "wt-badge wt-{f.kind}",
+                                            "{f.kind.chars().next().unwrap_or('?').to_uppercase()}"
+                                        }
+                                        span { class: "mono wt-path", "{f.path}" }
+                                    }
+                                }
+                            }
+                            if more_files > 0 {
+                                div { class: "wt-more", "+ {more_files} more" }
+                            }
+                        }
+                    }
+                }
+                // Sync
+                div { class: "ov-card",
+                    div { class: "ov-card-hdr",
+                        span { class: "ov-card-ico", dangerous_inner_html: "{icon_html(\"refresh\", 13)}" }
+                        "SYNC"
+                    }
+                    div { class: "sync-rows",
+                        div { class: "sync-row",
+                            span { class: "sync-lbl", "Ahead of remote" }
+                            if s.ahead > 0 {
+                                span { class: "sync-val sync-ahead",
+                                    span { dangerous_inner_html: "{icon_html(\"arrowUp\", 12)}" }
+                                    "{s.ahead} commits"
+                                }
+                            } else {
+                                span { class: "sync-val sync-dash", "—" }
+                            }
+                        }
+                        div { class: "sync-row",
+                            span { class: "sync-lbl", "Behind remote" }
+                            if s.behind > 0 {
+                                span { class: "sync-val sync-behind",
+                                    span { dangerous_inner_html: "{icon_html(\"arrowDown\", 12)}" }
+                                    "{s.behind} commits"
+                                }
+                            } else {
+                                span { class: "sync-val sync-dash", "—" }
+                            }
+                        }
+                        div { class: "sync-row",
+                            span { class: "sync-lbl", "Last fetched" }
+                            span { class: "sync-val", "{fetched_text}" }
+                        }
+                        if !repo.remote.is_empty() {
+                            div { class: "sync-row",
+                                span { class: "sync-lbl", "Remote" }
+                                span { class: "sync-val sync-remote",
+                                    "{repo.remote}"
+                                    span { class: "ov-card-ico", dangerous_inner_html: "{icon_html(\"external\", 11)}" }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
-            // Language bar
+            // Languages
             if !detail.languages.is_empty() {
-                div { class: "section",
-                    div { class: "sec-head", "Languages" }
-                    div { class: "lang-bar full",
-                        for lang in detail.languages.iter() {
-                            div {
-                                class: "lang-seg",
-                                style: "width:{lang.pct}%;background:{lang.color}",
-                                title: "{lang.name} {lang.pct}%"
+                div { class: "ov-card",
+                    div { class: "ov-card-hdr",
+                        span { class: "ov-card-ico", dangerous_inner_html: "{icon_html(\"code\", 13)}" }
+                        "LANGUAGES"
+                    }
+                    div { class: "ov-card-body",
+                        div { class: "lang-bar full",
+                            for lang in detail.languages.iter() {
+                                div {
+                                    class: "lang-seg",
+                                    style: "width:{lang.pct}%;background:{lang.color}",
+                                    title: "{lang.name} {lang.pct}%"
+                                }
                             }
                         }
-                    }
-                    div { class: "lang-legend",
-                        for lang in detail.languages.iter() {
-                            div { class: "lang-item",
-                                span { class: "lang-dot", style: "background:{lang.color}" }
-                                "{lang.name} {lang.pct}%"
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Changed files
-            if !s.files.is_empty() {
-                div { class: "section",
-                    div { class: "sec-head", "Changed Files" }
-                    div { class: "file-list",
-                        for f in s.files.iter().take(20) {
-                            div { class: "file-row",
-                                span { class: "file-kind {f.kind}", "{f.kind.chars().next().unwrap_or('?').to_uppercase()}" }
-                                span { class: "mono file-path", "{f.path}" }
+                        div { class: "lang-legend",
+                            for lang in detail.languages.iter() {
+                                div { class: "lang-item",
+                                    span { class: "lang-dot", style: "background:{lang.color}" }
+                                    "{lang.name} {lang.pct}%"
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Recent commits preview
+            // Recent Commits
             if !detail.commits.is_empty() {
-                div { class: "section",
-                    div { class: "sec-head", "Recent Commits" }
-                    for c in detail.commits.iter().take(5) {
-                        CommitRow { commit: c.clone() }
+                div { class: "ov-card",
+                    div { class: "ov-card-hdr",
+                        span { class: "ov-card-ico", dangerous_inner_html: "{icon_html(\"commit\", 13)}" }
+                        "RECENT COMMITS"
+                        button {
+                            class: "ov-view-all",
+                            onclick: move |_| tab.set("commits"),
+                            "View all"
+                            span { dangerous_inner_html: "{icon_html(\"chevronRight\", 11)}" }
+                        }
+                    }
+                    div { class: "ov-commit-list",
+                        for c in detail.commits.iter().take(5) {
+                            OvCommitRow { commit: c.clone() }
+                        }
                     }
                 }
             }
 
-            // Contributors preview
+            // Contributors
             if !detail.contributors.is_empty() {
-                div { class: "section",
-                    div { class: "sec-head", "Contributors" }
-                    AvatarStack {
-                        contributors: detail.contributors.clone(),
-                        max: 6,
-                        size: 32,
+                div { class: "ov-card",
+                    div { class: "ov-card-hdr",
+                        span { class: "ov-card-ico", dangerous_inner_html: "{icon_html(\"users\", 13)}" }
+                        "TOP CONTRIBUTORS"
+                        button {
+                            class: "ov-view-all",
+                            onclick: move |_| tab.set("contribs"),
+                            "View all"
+                            span { dangerous_inner_html: "{icon_html(\"chevronRight\", 11)}" }
+                        }
                     }
+                    div { class: "ov-contrib-preview",
+                        AvatarStack {
+                            contributors: detail.contributors.clone(),
+                            max: 6,
+                            size: 32,
+                        }
+                        span { class: "ov-contrib-meta",
+                            strong { "{contrib_count}" }
+                            " contributors  "
+                            strong { "{total_commits}" }
+                            " commits"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Overview commit row (with avatar) ────────────────────────────────────────
+
+#[component]
+fn OvCommitRow(commit: Commit) -> Element {
+    let hash_short = commit.hash.chars().take(7).collect::<String>();
+    let when = from_now(&commit.date);
+    let initials = commit.author
+        .split_whitespace()
+        .filter_map(|w| w.chars().next())
+        .take(2)
+        .collect::<String>()
+        .to_uppercase();
+    let colors = ["#6366F1","#EC4899","#14B8A6","#F59E0B","#8B5CF6","#06B6D4","#F43F5E","#22C55E"];
+    let av_color = colors[commit.author.bytes().fold(0usize, |a, b| a.wrapping_add(b as usize)) % colors.len()];
+
+    rsx! {
+        div { class: "ov-commit-row",
+            div { class: "ov-commit-av", style: "background:{av_color}", "{initials}" }
+            div { class: "ov-commit-body",
+                div { class: "ov-commit-msg", "{commit.msg}" }
+                div { class: "ov-commit-meta",
+                    span { "{commit.author}" }
+                    span { class: "ov-hash-chip", "{hash_short}" }
+                    if !when.is_empty() { span { "· {when}" } }
+                }
+            }
+            if commit.additions > 0 || commit.deletions > 0 {
+                div { class: "ov-commit-stats",
+                    if commit.additions > 0 { span { class: "adds", "+{commit.additions}" } }
+                    if commit.deletions > 0 { span { class: "dels", "-{commit.deletions}" } }
                 }
             }
         }
@@ -467,17 +605,3 @@ fn ReadmeTab(readme: String) -> Element {
     }
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
-
-#[component]
-fn StatCard(label: &'static str, value: String, icon: &'static str) -> Element {
-    rsx! {
-        div { class: "stat-card",
-            span { class: "stat-ico", dangerous_inner_html: "{icon_html(icon, 15)}" }
-            div { class: "stat-body",
-                span { class: "stat-val", "{value}" }
-                span { class: "stat-lbl", "{label}" }
-            }
-        }
-    }
-}

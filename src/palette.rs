@@ -80,27 +80,49 @@ pub fn CommandPalette(
                             }
                         },
                         PaletteMode::AddRepo(_) => rsx! {
-                            input {
-                                class: "cmdk-inp mono",
-                                placeholder: "Repo path…",
-                                autofocus: true,
-                                value: "{repo_path}",
-                                oninput: move |e| repo_path.set(e.value().clone()),
-                                onkeydown: move |e| {
-                                    if e.key() == Key::Escape { mode.set(PaletteMode::Search); }
-                                },
+                            div { class: "cmdk-path-row",
+                                span { class: "cmdk-path-val mono",
+                                    if repo_path.read().is_empty() {
+                                        span { class: "cmdk-path-placeholder", "No folder selected" }
+                                    } else {
+                                        "{repo_path}"
+                                    }
+                                }
+                                button {
+                                    class: "cmdk-browse-btn",
+                                    onclick: move |_| {
+                                        spawn(async move {
+                                            if let Some(p) = invoke::pick_folder().await {
+                                                repo_path.set(p);
+                                            }
+                                        });
+                                    },
+                                    span { dangerous_inner_html: "{icon_html(\"folder\", 13)}" }
+                                    "Browse…"
+                                }
                             }
                         },
                         PaletteMode::ScanDir => rsx! {
-                            input {
-                                class: "cmdk-inp mono",
-                                placeholder: "Parent directory path…",
-                                autofocus: true,
-                                value: "{repo_path}",
-                                oninput: move |e| repo_path.set(e.value().clone()),
-                                onkeydown: move |e| {
-                                    if e.key() == Key::Escape { mode.set(PaletteMode::Search); }
-                                },
+                            div { class: "cmdk-path-row",
+                                span { class: "cmdk-path-val mono",
+                                    if repo_path.read().is_empty() {
+                                        span { class: "cmdk-path-placeholder", "No folder selected" }
+                                    } else {
+                                        "{repo_path}"
+                                    }
+                                }
+                                button {
+                                    class: "cmdk-browse-btn",
+                                    onclick: move |_| {
+                                        spawn(async move {
+                                            if let Some(p) = invoke::pick_folder().await {
+                                                repo_path.set(p);
+                                            }
+                                        });
+                                    },
+                                    span { dangerous_inner_html: "{icon_html(\"folder\", 13)}" }
+                                    "Browse…"
+                                }
                             }
                         },
                         PaletteMode::Search => rsx! {
