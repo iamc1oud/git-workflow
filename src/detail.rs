@@ -120,7 +120,9 @@ fn DetailHeader(
 ) -> Element {
     let glyph = glyph_for(&repo.name);
     let repo2 = repo.clone();
-    let repo3 = repo.clone();
+    let mut editor_dropdown_open = use_signal(|| false);
+    let primary_ed = editors.first().cloned();
+    let has_more_editors = editors.len() > 1;
 
     rsx! {
         div { class: "detail-head",
@@ -151,29 +153,59 @@ fn DetailHeader(
             }
             div { class: "dh-actions",
                 StatusPill { repo: repo2.clone() }
-                // Open in editors
-                for ed in editors.iter() {
-                    {
-                        let path = repo.path.clone();
-                        let eid = ed.id.clone();
-                        let ename = ed.name.clone();
-                        let accent = ed.accent.clone();
-                        let mark = ed.mark.clone();
-                        rsx! {
-                            button {
-                                class: "btn",
-                                style: "background:{accent};border-color:{accent};color:#fff",
-                                title: "Open in {ename}",
-                                onclick: move |_| {
+                
+                // Open in editor dropdown
+                if let Some(ref primary_ed) = primary_ed {
+                    div { class: "split",
+                        button {
+                            class: "btn-primary",
+                            style: "background:{primary_ed.accent};border-color:{primary_ed.accent}",
+                            title: "Open in {primary_ed.name}",
+                            onclick: {
+                                let path = repo.path.clone();
+                                let eid = primary_ed.id.clone();
+                                move |_| {
                                     let p = path.clone();
                                     let e = eid.clone();
                                     spawn(async move { invoke::open_in(e, p).await; });
-                                },
-                                "{mark}"
+                                }
+                            },
+                            span { dangerous_inner_html: "{primary_ed.mark}" }
+                            "Open in {primary_ed.name}"
+                        }
+                        if has_more_editors {
+                            button {
+                                class: "btn-primary",
+                                style: "background:{primary_ed.accent};border-color:{primary_ed.accent}",
+                                title: "Open in other editors",
+                                onclick: move |_| editor_dropdown_open.toggle(),
+                                span { dangerous_inner_html: "{icon_html(\"chevronDown\", 14)}" }
+                            }
+                            if *editor_dropdown_open.read() {
+                                div { class: "dropdown",
+                                    for ed in editors.iter().skip(1) {
+                                        button {
+                                            class: "dropdown-item",
+                                            onclick: {
+                                                let path = repo.path.clone();
+                                                let eid = ed.id.clone();
+                                                move |_| {
+                                                    let p = path.clone();
+                                                    let e = eid.clone();
+                                                    spawn(async move { invoke::open_in(e, p).await; });
+                                                    editor_dropdown_open.set(false);
+                                                }
+                                            },
+                                            span { dangerous_inner_html: "{ed.mark}" }
+                                            "{ed.name}"
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                
                 button {
                     class: "tb-btn",
                     title: "Fetch",
@@ -186,6 +218,30 @@ fn DetailHeader(
                     onclick: move |_| on_pull.call(()),
                     span { dangerous_inner_html: "{icon_html(\"arrowDown\", 14)}" }
                     "Pull"
+                }
+                button {
+                    class: "tb-btn",
+                    title: "Open in Terminal",
+                    onclick: {
+                        let path = repo.path.clone();
+                        move |_| {
+                            let p = path.clone();
+                            spawn(async move { invoke::open_terminal(p).await; });
+                        }
+                    },
+                    span { dangerous_inner_html: "{icon_html(\"terminal\", 16)}" }
+                }
+                button {
+                    class: "tb-btn",
+                    title: "Open Folder",
+                    onclick: {
+                        let path = repo.path.clone();
+                        move |_| {
+                            let p = path.clone();
+                            spawn(async move { invoke::open_folder(p).await; });
+                        }
+                    },
+                    span { dangerous_inner_html: "{icon_html(\"folderOpen\", 16)}" }
                 }
             }
         }

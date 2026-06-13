@@ -83,3 +83,15 @@ pub async fn add_custom_editor(id: String, name: String, path: String, cmd: Stri
     struct Args { id: String, name: String, path: String, cmd: String }
     let _ = call::<()>("add_custom_editor", Args { id, name, path, cmd }).await;
 }
+
+pub async fn open_terminal(path: String) {
+    #[derive(Serialize)]
+    struct Args { path: String }
+    let _ = call::<()>("open_terminal", Args { path }).await;
+}
+
+pub async fn open_folder(path: String) {
+    #[derive(Serialize)]
+    struct Args { path: String }
+    let _ = call::<()>("open_folder", Args { path }).await;
+}
