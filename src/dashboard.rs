@@ -27,14 +27,21 @@ pub fn Dashboard(
 
     rsx! {
         div { class: "dash scroll",
-            // Stat cards
-            div { class: "dash-cards",
-                DashCard { label: "Total Repos", value: total.to_string(), icon: "archive", color: "#7C6BFF" }
-                DashCard { label: "Uncommitted", value: dirty.len().to_string(), icon: "diff", color: "#F59E0B" }
-                DashCard { label: "Stale (30d+)", value: stale.len().to_string(), icon: "clock", color: "#EF4444" }
-                DashCard { label: "Favorites", value: favorites.len().to_string(), icon: "star", color: "#22C55E" }
+            // Header
+            div { class: "dash-header",
+                h1 { class: "dash-h", "Good afternoon 👋" }
+                p { class: "dash-sub", "{total} repositories across 5 folders • {dirty.len()} need attention" }
             }
 
+            // Stat cards
+            div { class: "stat-grid",
+                StatCard { label: "Total Repos", value: total.to_string(), icon: "archive", color: "#7C6BFF" }
+                StatCard { label: "Uncommitted", value: dirty.len().to_string(), icon: "diff", color: "#F59E0B" }
+                StatCard { label: "Stale (30d+)", value: stale.len().to_string(), icon: "clock", color: "#EF4444" }
+                StatCard { label: "Favorites", value: favorites.len().to_string(), icon: "star", color: "#22C55E" }
+            }
+
+            // Dashboard columns
             div { class: "dash-cols",
                 // Attention column
                 div { class: "dash-col",
@@ -92,9 +99,10 @@ pub fn Dashboard(
 
                     if dirty.is_empty() && stale.is_empty() {
                         div { class: "dash-sec",
-                            div { class: "dash-ok",
-                                span { dangerous_inner_html: "{icon_html(\"check\", 22)}" }
-                                "All repos clean"
+                            div { class: "empty-state dash-empty",
+                                span { dangerous_inner_html: "{icon_html(\"check\", 24)}" }
+                                p { "All repos clean" }
+                                p { class: "muted", "Keep up the great work!" }
                             }
                         }
                     }
@@ -106,33 +114,32 @@ pub fn Dashboard(
                         div { class: "dash-sec-h",
                             span { dangerous_inner_html: "{icon_html(\"activity\", 14)}" }
                             "Recent Activity"
+                            span { class: "badge", "{recent.len()}" }
                         }
-                        for r in recent.iter() {
-                            {
-                                let r2 = r.clone();
-                                let folder = folders.iter().find(|f| f.id == r.folder_id);
-                                let color = folder.map(|f| f.color.clone()).unwrap_or_else(|| "#7C6BFF".into());
-                                let when = from_now(&r.last_commit_at);
-                                let glyph = glyph_for(&r.name);
-                                rsx! {
-                                    div {
-                                        class: "activity-row",
-                                        onclick: move |_| on_open.call(r2.clone()),
-                                        div { class: "repo-glyph sm", style: "background:{color}", "{glyph}" }
-                                        div { class: "act-info",
-                                            span { class: "act-name", "{r.name}" }
-                                            span { class: "act-branch mono",
-                                                span { dangerous_inner_html: "{icon_html(\"branch\", 10)}" }
-                                                "{r.branch}"
-                                            }
+                        if !recent.is_empty() {
+                            for r in recent.iter() {
+                                {
+                                    let r2 = r.clone();
+                                    let folder = folders.iter().find(|f| f.id == r.folder_id);
+                                    let color = folder.map(|f| f.color.clone()).unwrap_or_else(|| "#7C6BFF".into());
+                                    let when = from_now(&r.last_commit_at);
+                                    let glyph = glyph_for(&r.name);
+                                    rsx! {
+                                        ActivityRow {
+                                            repo: r2,
+                                            color,
+                                            glyph,
+                                            when,
+                                            on_open,
                                         }
-                                        span { class: "act-when", "{when}" }
                                     }
                                 }
                             }
-                        }
-                        if recent.is_empty() {
-                            div { class: "empty-state", p { "No repos yet" } }
+                        } else {
+                            div { class: "empty-state dash-empty",
+                                span { dangerous_inner_html: "{icon_html(\"inbox\", 24)}" }
+                                p { "No activity" }
+                            }
                         }
                     }
                 }
@@ -144,14 +151,14 @@ pub fn Dashboard(
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
 #[component]
-fn DashCard(label: &'static str, value: String, icon: &'static str, color: &'static str) -> Element {
+fn StatCard(label: &'static str, value: String, icon: &'static str, color: &'static str) -> Element {
     rsx! {
-        div { class: "dash-card",
-            div { class: "dc-ico", style: "color:{color}", dangerous_inner_html: "{icon_html(icon, 22)}" }
-            div { class: "dc-body",
-                span { class: "dc-val", "{value}" }
-                span { class: "dc-lbl", "{label}" }
+        div { class: "stat",
+            div { class: "stat top",
+                span { class: "stat ic", style: "background:{color}", dangerous_inner_html: "{icon_html(icon, 16)}" }
             }
+            div { class: "stat num", "{value}" }
+            span { class: "stat lbl", "{label}" }
         }
     }
 }
@@ -169,11 +176,42 @@ fn AttentionRow(
     let repo2 = repo.clone();
     rsx! {
         div {
-            class: "attention-row",
+            class: "attn",
             onclick: move |_| on_open.call(repo2.clone()),
-            div { class: "repo-glyph sm", style: "background:{color}", "{glyph}" }
-            span { class: "att-name", "{repo.name}" }
-            span { class: "att-detail", "{detail}" }
+            div { class: "repo-glyph", style: "width:32px;height:32px;border-radius:8px;font-size:12px;background:{color}", "{glyph}" }
+            div { style: "flex:1;min-width:0",
+                div { style: "font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis", "{repo.name}" }
+                div { style: "font-size:11px;color:var(--text-3);margin-top:2px", "{detail}" }
+            }
+            span { style: "font-size:11px;color:var(--text-3);white-space:nowrap", "{from_now(&repo.last_commit_at)}" }
+        }
+    }
+}
+
+// ── Activity row ──────────────────────────────────────────────────────────────
+
+#[component]
+fn ActivityRow(
+    repo: RepoSummary,
+    color: String,
+    glyph: String,
+    when: String,
+    on_open: EventHandler<RepoSummary>,
+) -> Element {
+    let repo2 = repo.clone();
+    rsx! {
+        div {
+            class: "act",
+            onclick: move |_| on_open.call(repo2.clone()),
+            div { class: "repo-glyph", style: "width:32px;height:32px;border-radius:8px;font-size:12px;background:{color}", "{glyph}" }
+            div { style: "flex:1;min-width:0",
+                div { style: "font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis", "{repo.name}" }
+                div { class: "act-branch", style: "font-size:10px;margin-top:2px",
+                    span { dangerous_inner_html: "{icon_html(\"branch\", 10)}" }
+                    "{repo.branch}"
+                }
+            }
+            span { class: "act-when", "{when}" }
         }
     }
 }

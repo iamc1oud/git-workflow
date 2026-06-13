@@ -125,7 +125,7 @@ fn DetailHeader(
     rsx! {
         div { class: "detail-head",
             div { class: "dh-left",
-                div { class: "repo-glyph lg", style: "background:#7C6BFF",
+                div { class: "dh-glyph", style: "background:#7C6BFF",
                     "{glyph}"
                 }
                 div { class: "dh-info",
@@ -141,10 +141,16 @@ fn DetailHeader(
                             }
                         }
                     }
+                    if !repo.path.is_empty() {
+                        div { class: "dh-path", style: "margin-top:8px",
+                            span { dangerous_inner_html: "{icon_html(\"folder\", 11)}" }
+                            span { style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap", "{repo.path}" }
+                        }
+                    }
                 }
             }
             div { class: "dh-actions",
-                StatusPill { repo: repo2 }
+                StatusPill { repo: repo2.clone() }
                 // Open in editors
                 for ed in editors.iter() {
                     {
@@ -155,8 +161,8 @@ fn DetailHeader(
                         let mark = ed.mark.clone();
                         rsx! {
                             button {
-                                class: "open-btn",
-                                style: "background:{accent}",
+                                class: "btn",
+                                style: "background:{accent};border-color:{accent};color:#fff",
                                 title: "Open in {ename}",
                                 onclick: move |_| {
                                     let p = path.clone();
