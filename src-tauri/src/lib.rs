@@ -16,7 +16,8 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
-            window.set_decorations(false)?;
+            // re-enable native window decorations so OS app bar is visible
+            window.set_decorations(true)?;
 
             let data_dir = app
                 .path()
