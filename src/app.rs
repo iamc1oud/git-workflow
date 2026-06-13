@@ -25,6 +25,8 @@ pub fn App() -> Element {
     let mut show_palette = use_signal(|| false);
     let mut show_settings = use_signal(|| false);
     let mut toasts: Signal<Vec<Toast>> = use_signal(Vec::new);
+    // global search query (rendered in titlebar)
+    let mut search: Signal<String> = use_signal(|| String::new());
 
     // ── Bootstrap ─────────────────────────────────────────────────────────────
     use_effect(move || {
@@ -132,12 +134,16 @@ pub fn App() -> Element {
                     span { class: "tb-logo", "</>" }
                     span { class: "tb-title", "CodeFinder" }
                 }
-                // Search trigger (⌘K)
-                button {
-                    class: "tb-search",
-                    onclick: move |_| show_palette.set(true),
+                // Search (in appbar)
+                div { class: "tb-search",
                     span { dangerous_inner_html: "{icon_html(\"search\", 13)}" }
-                    span { "Search repos & commands" }
+                    input {
+                        class: "tb-search-input",
+                        r#type: "text",
+                        placeholder: "Search repos & commands",
+                        value: "{search}",
+                        oninput: move |e| search.set(e.value().clone()),
+                    }
                     span { class: "tb-kbd", "⌘K" }
                 }
                 div { style: "flex:1" }

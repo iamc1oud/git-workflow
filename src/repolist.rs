@@ -12,12 +12,12 @@ pub fn RepoList(
     folders: Vec<Folder>,
     sel: Signal<Selection>,
     on_open: EventHandler<RepoSummary>,
+    search: Signal<String>,
 ) -> Element {
-    let mut query = use_signal(|| String::new());
     let mut view = use_signal(|| "list"); // "list" | "grid"
     let mut sort = use_signal(|| "name"); // "name" | "recent" | "status"
 
-    let q = query.read().to_lowercase();
+    let q = search.read().to_lowercase();
     let v = *view.read();
     let s = *sort.read();
 
@@ -44,16 +44,7 @@ pub fn RepoList(
         div { class: "list",
             // Toolbar
             div { class: "list-bar",
-                div { class: "search-wrap",
-                    span { class: "search-ico", dangerous_inner_html: "{icon_html(\"search\", 14)}" }
-                    input {
-                        class: "search-inp",
-                        r#type: "text",
-                        placeholder: "Filter repos…",
-                        value: "{query}",
-                        oninput: move |e| query.set(e.value().clone()),
-                    }
-                }
+                // search moved to appbar
                 div { class: "bar-actions",
                     select {
                         class: "sort-sel",
