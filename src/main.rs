@@ -1,4 +1,13 @@
 mod app;
+mod dashboard;
+mod detail;
+mod icons;
+mod invoke;
+mod models;
+mod palette;
+mod repolist;
+mod shared;
+mod sidebar;
 
 use app::App;
 use dioxus::prelude::*;

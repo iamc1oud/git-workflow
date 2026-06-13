@@ -1,158 +1,283 @@
 #![allow(non_snake_case)]
 
 use dioxus::prelude::*;
-use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
+
+use crate::{
+    dashboard::{Dashboard, SettingsModal},
+    icons::icon_html,
+    invoke,
+    models::*,
+    palette::CommandPalette,
+    repolist::RepoList,
+    shared::Toast,
+    sidebar::Sidebar,
+};
 
 static CSS: Asset = asset!("/assets/styles.css");
-static TAURI_ICON: Asset = asset!("/assets/tauri.svg");
-static DIOXUS_ICON: Asset = asset!("/assets/dioxus.png");
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
-}
-
-#[derive(Serialize, Deserialize)]
-struct GreetArgs<'a> {
-    name: &'a str,
-}
 
 pub fn App() -> Element {
-    let mut name = use_signal(|| String::new());
-    let mut greet_msg = use_signal(|| String::new());
+    // ── Global state ──────────────────────────────────────────────────────────
+    let mut folders: Signal<Vec<Folder>> = use_signal(Vec::new);
+    let mut repos: Signal<Vec<RepoSummary>> = use_signal(Vec::new);
+    let mut editors: Signal<Vec<Editor>> = use_signal(Vec::new);
+    let mut sel: Signal<Selection> = use_signal(|| Selection::smart("dashboard"));
+    let mut theme: Signal<String> = use_signal(|| "dark".to_string());
+    let mut show_palette = use_signal(|| false);
+    let mut show_settings = use_signal(|| false);
+    let mut toasts: Signal<Vec<Toast>> = use_signal(Vec::new);
 
-    let greet = move |event: FormEvent| async move {
-        event.prevent_default();
+    // ── Bootstrap ─────────────────────────────────────────────────────────────
+    use_effect(move || {
+        spawn(async move {
+            folders.set(invoke::list_folders().await);
+            repos.set(invoke::list_all_repos().await);
+            editors.set(invoke::detect_ides().await);
+        });
+    });
 
-        if name.read().is_empty() {
-            return;
+    // ── Theme effect ──────────────────────────────────────────────────────────
+    use_effect(move || {
+        let t = theme.read().clone();
+        let _ = web_sys::window()
+            .and_then(|w| w.document())
+            .and_then(|d| d.document_element())
+            .map(|el| el.set_attribute("data-theme", &t));
+    });
+
+    // ── Global Cmd+K / Ctrl+K shortcut ───────────────────────────────────────
+    use_effect(move || {
+        use wasm_bindgen::closure::Closure;
+        use wasm_bindgen::JsCast;
+        let closure = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
+            if (e.meta_key() || e.ctrl_key()) && e.key() == "k" {
+                e.prevent_default();
+                let cur = *show_palette.peek();
+                show_palette.set(!cur);
+            }
+        }) as Box<dyn FnMut(web_sys::KeyboardEvent)>);
+        if let Some(win) = web_sys::window() {
+            let _ = win.add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref());
         }
+        closure.forget();
+    });
 
-        let name = name.read();
-        let args = serde_wasm_bindgen::to_value(&GreetArgs { name: &*name }).unwrap();
-        // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-        let new_msg = invoke("greet", args).await.as_string().unwrap();
-        greet_msg.set(new_msg);
+    // ── Refresh callback ─────────────────────────────────────────────────────
+    let refresh = move |_| {
+        spawn(async move {
+            folders.set(invoke::list_folders().await);
+            repos.set(invoke::list_all_repos().await);
+        });
+    };
+
+    // ── Derived: selected repo (when NavKind::Repo) ───────────────────────────
+    let selected_repo: Option<RepoSummary> = {
+        let s = sel.read().clone();
+        if s.kind == NavKind::Repo {
+            repos.read().iter().find(|r| r.id == s.id).cloned()
+        } else {
+            None
+        }
+    };
+
+    // ── Repos visible in list (based on selection) ────────────────────────────
+    let visible_repos: Vec<RepoSummary> = {
+        let s = sel.read().clone();
+        let all = repos.read().clone();
+        match s.kind {
+            NavKind::Smart => match s.id.as_str() {
+                "all" => all,
+                "uncommitted" => all.into_iter().filter(|r| !r.status.clean).collect(),
+                "stale" => all.into_iter().filter(|r| is_stale(&r.last_commit_at)).collect(),
+                _ => all,
+            },
+            NavKind::Folder => all.into_iter().filter(|r| r.folder_id == s.id).collect(),
+            NavKind::Repo => all,
+        }
+    };
+
+    let is_dashboard = {
+        let s = sel.read();
+        s.kind == NavKind::Smart && s.id == "dashboard"
+    };
+
+    let is_activity = {
+        let s = sel.read();
+        s.kind == NavKind::Smart && s.id == "activity"
+    };
+
+    // ── Toast auto-dismiss ────────────────────────────────────────────────────
+    // Use a manual timer via js_sys; dismiss oldest after 3s
+    // Simple approach: each toast rendered with a dismiss button + auto-expire via spawn
+    let mut dismiss_toast = move |id: String| {
+        toasts.write().retain(|t| t.id != id);
     };
 
     rsx! {
-        div {
-            class: "window",
-            TitleBar {}
-            div {
-                class: "content"
-            }
+        // CSS asset
+        document::Link { rel: "stylesheet", href: CSS }
+        document::Link {
+            rel: "preconnect",
+            href: "https://fonts.googleapis.com"
         }
-        link { rel: "stylesheet", href: CSS }
-        main {
-            class: "container",
-            h1 { "Welcome to Git Workflow" }
 
-            div {
-                class: "row",
-                a {
-                    href: "https://tauri.app",
-                    target: "_blank",
-                    img {
-                        src: TAURI_ICON,
-                        class: "logo tauri",
-                         alt: "Tauri logo"
+        div { class: "win",
+            // ── Titlebar ──────────────────────────────────────────────────────
+            div { class: "titlebar",
+                div { class: "traffic",
+                    div { class: "dot red" }
+                    div { class: "dot yellow" }
+                    div { class: "dot green" }
+                }
+                div { class: "tb-brand",
+                    span { class: "tb-logo", "</>" }
+                    span { class: "tb-title", "CodeFinder" }
+                }
+                // Search trigger (⌘K)
+                button {
+                    class: "tb-search",
+                    onclick: move |_| show_palette.set(true),
+                    span { dangerous_inner_html: "{icon_html(\"search\", 13)}" }
+                    span { "Search repos & commands" }
+                    span { class: "tb-kbd", "⌘K" }
+                }
+                div { style: "flex:1" }
+            }
+
+            // ── Main layout ───────────────────────────────────────────────────
+            div { class: "layout",
+                // Sidebar
+                Sidebar {
+                    sel,
+                    folders,
+                    repos,
+                    theme,
+                    on_toggle_theme: move |_| {
+                        let t = theme.read().clone();
+                        theme.set(if t == "dark" { "light".into() } else { "dark".into() });
+                    },
+                    on_open_settings: move |_| show_settings.set(true),
+                    toasts,
+                }
+
+                // Center: list or dashboard
+                if is_dashboard {
+                    Dashboard {
+                        repos: repos.read().clone(),
+                        folders: folders.read().clone(),
+                        toasts,
+                        on_open: move |r: RepoSummary| {
+                            sel.set(Selection::repo(&r.id));
+                        },
+                    }
+                } else if is_activity {
+                    ActivityView { repos: repos.read().clone() }
+                } else {
+                    RepoList {
+                        repos: visible_repos,
+                        folders: folders.read().clone(),
+                        sel,
+                        on_open: move |r: RepoSummary| {
+                            sel.set(Selection::repo(&r.id));
+                        },
                     }
                 }
-                a {
-                    href: "https://dioxuslabs.com/",
-                    target: "_blank",
-                    img {
-                        src: DIOXUS_ICON,
-                        class: "logo dioxus",
-                        alt: "Dioxus logo"
+
+                // Detail panel (when a repo is selected)
+                if let Some(repo) = selected_repo {
+                    crate::detail::DetailPanel {
+                        repo,
+                        editors: editors.read().clone(),
+                        sel,
+                        toasts,
                     }
                 }
             }
-            p { "Click on the Tauri and Dioxus logos to learn more." }
 
-            form {
-                class: "row",
-                onsubmit: greet,
-                input {
-                    id: "greet-input",
-                    placeholder: "Enter a name...",
-                    value: "{name}",
-                    oninput: move |event| name.set(event.value())
+            // ── Toasts ─────────────────────────────────────────────────────────
+            div { class: "toast-wrap",
+                for toast in toasts.read().iter() {
+                    {
+                        let tid = toast.id.clone();
+                        let tmsg = toast.msg.clone();
+                        let tmono = toast.mono.clone();
+                        rsx! {
+                            div { class: "toast",
+                                span { class: "toast-msg", "{tmsg}" }
+                                if !tmono.is_empty() {
+                                    span { class: "toast-mono mono", "{tmono}" }
+                                }
+                                button {
+                                    class: "toast-x",
+                                    onclick: move |_| dismiss_toast(tid.clone()),
+                                    "×"
+                                }
+                            }
+                        }
+                    }
                 }
-                button { r#type: "submit", "Greet" }
             }
-            p { "{greet_msg}" }
-        }
-    }
-}
 
-// Title Bar component
-#[component]
-fn TitleBar() -> Element {
-    rsx! {
-        div {
-            class: "titlebar",
-
-            TrafficLights {}
-
-            div {
-                class: "brand",
-
-                div {
-                    class: "logo",
-                    "</>"
+            // ── Command palette ────────────────────────────────────────────────
+            if *show_palette.read() {
+                CommandPalette {
+                    repos: repos.read().clone(),
+                    folders: folders.read().clone(),
+                    on_close: move |_| show_palette.set(false),
+                    on_open_repo: move |r: RepoSummary| {
+                        sel.set(Selection::repo(&r.id));
+                        show_palette.set(false);
+                    },
+                    on_refresh: refresh,
+                    toasts,
                 }
-
-                span { "CodeFinder" }
             }
 
-            SearchBar {}
-
-            div {
-                class: "actions",
-
-                button { "🌙" }
-                button { "⚙" }
+            // ── Settings modal ─────────────────────────────────────────────────
+            if *show_settings.read() {
+                SettingsModal {
+                    editors: editors.read().clone(),
+                    on_close: move |_| show_settings.set(false),
+                    toasts,
+                }
             }
         }
     }
 }
 
-#[component]
-fn TrafficLights() -> Element {
-    rsx! {
-        div {
-            class: "traffic-lights",
-
-            div { class: "dot red" }
-            div { class: "dot yellow" }
-            div { class: "dot green" }
-        }
-    }
-}
+// ── Activity view ─────────────────────────────────────────────────────────────
 
 #[component]
-fn SearchBar() -> Element {
+fn ActivityView(repos: Vec<RepoSummary>) -> Element {
+    let mut sorted = repos;
+    sorted.sort_by(|a, b| b.last_commit_at.cmp(&a.last_commit_at));
+
     rsx! {
-        div {
-            class: "search-container",
-
-            span {
-                class: "search-icon",
-                "🔍"
+        div { class: "list",
+            div { class: "list-bar",
+                div { class: "list-count", "Activity Feed" }
             }
-
-            input {
-                class: "search-input",
-                placeholder: "Search repos & commands"
-            }
-
-            div {
-                class: "shortcut",
-                "⌘K"
+            div { class: "activity-feed",
+                for r in sorted.iter() {
+                    div { class: "activity-row",
+                        div { class: "repo-glyph sm", style: "background:#7C6BFF",
+                            "{glyph_for(&r.name)}"
+                        }
+                        div { class: "act-info",
+                            span { class: "act-name", "{r.name}" }
+                            span { class: "act-branch mono",
+                                span { dangerous_inner_html: "{icon_html(\"branch\", 10)}" }
+                                "{r.branch}"
+                            }
+                        }
+                        span { class: "act-when", "{from_now(&r.last_commit_at)}" }
+                    }
+                }
+                if sorted.is_empty() {
+                    div { class: "empty-state",
+                        span { dangerous_inner_html: "{icon_html(\"activity\", 36)}" }
+                        p { "No repos yet" }
+                    }
+                }
             }
         }
     }
