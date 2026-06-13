@@ -4,7 +4,7 @@ use crate::{
     icons::icon_html,
     invoke,
     models::*,
-    shared::{Avatar, AvatarStack, StatusPill, Toast},
+    shared::{AvatarStack, StatusPill, Toast},
 };
 
 #[component]
@@ -657,44 +657,71 @@ fn BranchesTab(
 
 // ── Contributors tab ──────────────────────────────────────────────────────────
 
+fn fmt_stat(n: u32) -> String {
+    if n >= 1000 { format!("{:.1}k", n as f32 / 1000.0) } else { n.to_string() }
+}
+
 #[component]
 fn ContribsTab(contributors: Vec<Contributor>) -> Element {
+    let count = contributors.len();
     rsx! {
-        div { class: "contribs-list",
-            for c in contributors.iter() {
-                {
-                    let initials = {
-                        c.name.split_whitespace()
+        div { class: "contribs-tab",
+            div { class: "contribs-tab-hdr",
+                span { class: "cv-hdr-ico", dangerous_inner_html: "{icon_html(\"users\", 14)}" }
+                span { class: "cv-count mono", "{count}" }
+                span { class: "cv-label", "CONTRIBUTORS" }
+            }
+            div { class: "cv-list",
+                if contributors.is_empty() {
+                    div { class: "empty-state", p { "No contributors" } }
+                }
+                for c in contributors.iter() {
+                    {
+                        let colors = ["#6366F1","#EC4899","#14B8A6","#F59E0B","#8B5CF6","#06B6D4","#F43F5E","#22C55E"];
+                        let av_color = colors[c.handle.bytes().fold(0usize, |a, b| a.wrapping_add(b as usize)) % colors.len()];
+                        let initials = c.name.split_whitespace()
                             .filter_map(|w| w.chars().next())
                             .take(2)
                             .collect::<String>()
-                            .to_uppercase()
-                    };
-                    let color = {
-                        let colors = ["#6366F1","#EC4899","#14B8A6","#F59E0B","#8B5CF6","#06B6D4","#F43F5E","#22C55E"];
-                        let idx = c.handle.bytes().fold(0usize, |a, b| a.wrapping_add(b as usize)) % colors.len();
-                        colors[idx].to_string()
-                    };
-                    let when = from_now(&c.last_active);
-                    rsx! {
-                        div { class: "contrib-row",
-                            Avatar { initials, color, name: c.name.clone(), size: 36 }
-                            div { class: "contrib-info",
-                                span { class: "contrib-name", "{c.name}" }
-                                span { class: "contrib-handle mono", "@{c.handle}" }
-                            }
-                            div { class: "contrib-stats",
-                                span { class: "stat-chip", span { dangerous_inner_html: "{icon_html(\"commit\", 12)}" } "{c.commits}" }
-                                span { class: "adds", "+{c.additions}" }
-                                span { class: "dels", "-{c.deletions}" }
-                                if !when.is_empty() { span { class: "contrib-when", "{when}" } }
+                            .to_uppercase();
+                        let when = from_now(&c.last_active);
+                        let adds_fmt = fmt_stat(c.additions);
+                        let dels_fmt = fmt_stat(c.deletions);
+                        let total = (c.additions + c.deletions).max(1);
+                        let add_pct = (c.additions as f32 / total as f32 * 100.0) as u32;
+                        let del_pct = 100u32.saturating_sub(add_pct);
+                        rsx! {
+                            div { class: "cv-row",
+                                div { class: "cv-avatar", style: "background:{av_color}", "{initials}" }
+                                div { class: "cv-info",
+                                    div { class: "cv-name-row",
+                                        span { class: "cv-name", "{c.name}" }
+                                        span { class: "cv-handle mono", "@{c.handle}" }
+                                    }
+                                    div { class: "cv-meta",
+                                        span { "{c.commits} commits" }
+                                        span { class: "cv-dot", "·" }
+                                        span { "active" }
+                                        if !when.is_empty() {
+                                            span { class: "cv-dot", "·" }
+                                            span { "{when}" }
+                                        }
+                                    }
+                                }
+                                div { class: "cv-right",
+                                    div { class: "cv-stats",
+                                        span { class: "adds", "+{adds_fmt}" }
+                                        span { class: "dels", "-{dels_fmt}" }
+                                    }
+                                    div { class: "cv-bar",
+                                        div { class: "cv-bar-add", style: "width:{add_pct}%" }
+                                        div { class: "cv-bar-del", style: "width:{del_pct}%" }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-            if contributors.is_empty() {
-                div { class: "empty-state", p { "No contributors" } }
             }
         }
     }
