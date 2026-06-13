@@ -72,6 +72,7 @@ pub fn App() -> Element {
     };
 
     // ── Derived: selected repo (when NavKind::Repo) ───────────────────────────
+    let has_detail = sel.read().kind == NavKind::Repo;
     let selected_repo: Option<RepoSummary> = {
         let s = sel.read().clone();
         if s.kind == NavKind::Repo {
@@ -141,7 +142,8 @@ pub fn App() -> Element {
             }
 
             // ── Main layout ───────────────────────────────────────────────────
-            div { class: "body",
+            div {
+                class: if has_detail { "body" } else { "body fullwidth" },
                 // Sidebar
                 Sidebar {
                     sel,

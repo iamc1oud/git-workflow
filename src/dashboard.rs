@@ -26,11 +26,15 @@ pub fn Dashboard(
     };
 
     rsx! {
-        div { class: "dash scroll",
+        div { 
+            class: "dash scroll",
             // Header
-            div { class: "dash-header",
-                h1 { class: "dash-h", "Good afternoon 👋" }
-                p { class: "dash-sub", "{total} repositories across 5 folders • {dirty.len()} need attention" }
+            div { 
+                class: "dash-header",
+                h1 { class: "dash-h", "Hey Buddy 👋" }
+                p { 
+                    class: "dash-sub", 
+                    "{total} repositories across 5 folders • {dirty.len()} need attention" }
             }
 
             // Stat cards
@@ -154,11 +158,11 @@ pub fn Dashboard(
 fn StatCard(label: &'static str, value: String, icon: &'static str, color: &'static str) -> Element {
     rsx! {
         div { class: "stat",
-            div { class: "stat top",
+            div { class: "top",
                 span { class: "stat ic", style: "background:{color}", dangerous_inner_html: "{icon_html(icon, 16)}" }
             }
-            div { class: "stat num", "{value}" }
-            span { class: "stat lbl", "{label}" }
+            div { class: "num", "{value}" }
+            span { class: "lbl", "{label}" }
         }
     }
 }

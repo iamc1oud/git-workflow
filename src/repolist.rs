@@ -42,6 +42,10 @@ pub fn RepoList(
 
     rsx! {
         div { class: "list",
+            // Count
+            div { class: "dash-h ", "All Repositories" }
+            div { class: "list-sub", "{repo_count} {plural}" }
+
             // Toolbar
             div { class: "list-bar",
                 // search moved to appbar
@@ -66,8 +70,7 @@ pub fn RepoList(
                 }
             }
 
-            // Count
-            div { class: "list-count", "{repo_count} {plural}" }
+            
 
             // Items
             if v == "grid" {
@@ -125,50 +128,37 @@ fn RepoListRow(
 
     rsx! {
         div {
-            class: if selected { "repo-row selected" } else { "repo-row" },
+            class: if selected { "repo sel" } else { "repo" },
             onclick: move |_| on_open.call(repo2.clone()),
-            // Glyph badge
+            // Glyph
             div {
                 class: "repo-glyph",
                 style: "background:{color}",
-                if dirty {
-                    span { class: "dirty-dot" }
-                }
+                if dirty { span { class: "dirty-dot" } }
                 "{glyph}"
             }
-            // Main info
-            div { class: "repo-info",
-                div { class: "repo-name", "{repo.name}" }
+            // Middle: name + meta
+            div { class: "repo-mid",
+                div { class: "repo-name",
+                    span { class: "nm", "{repo.name}" }
+                }
                 div { class: "repo-meta",
-                    if !folder_name.is_empty() {
-                        span { class: "repo-folder", "{folder_name}" }
-                        span { class: "sep", "·" }
-                    }
                     span { class: "repo-branch mono",
                         span { dangerous_inner_html: "{icon_html(\"branch\", 11)}" }
                         "{repo.branch}"
                     }
-                    if !when.is_empty() {
+                    if !folder_name.is_empty() {
                         span { class: "sep", "·" }
-                        span { class: "repo-when", "{when}" }
+                        span { class: "repo-folder", "{folder_name}" }
                     }
                 }
             }
-            // Languages
-            if !repo.languages.is_empty() {
-                div { class: "lang-bar-wrap",
-                    div { class: "lang-bar",
-                        for lang in repo.languages.iter().take(4) {
-                            span { style: "width:{lang.pct}%;background:{lang.color}" }
-                        }
-                    }
+            // Right: time + status pill
+            div { class: "repo-right",
+                if !when.is_empty() {
+                    span { class: "repo-time", "{when}" }
                 }
-            }
-            // Status pill
-            StatusPill { repo: repo3 }
-            // Remote host chip
-            if !repo.remote_host.is_empty() {
-                span { class: "host-chip", "{repo.remote_host}" }
+                StatusPill { repo: repo3 }
             }
         }
     }
