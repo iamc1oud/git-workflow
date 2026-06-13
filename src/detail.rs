@@ -79,7 +79,12 @@ pub fn DetailPanel(
                 } else if let Some(d) = detail.read().clone() {
                     match t {
                         "commits" => rsx! { CommitsTab { commits: d.commits.clone(), branch: repo.branch.clone() } },
-                        "branches" => rsx! { BranchesTab { branches: d.branches.clone() } },
+                        "branches" => rsx! { BranchesTab {
+                            branches: d.branches.clone(),
+                            default_branch: repo.default_branch.clone(),
+                            repo_path: repo.path.clone(),
+                            toasts,
+                        } },
                         "contribs" => rsx! { ContribsTab { contributors: d.contributors.clone() } },
                         "readme" => rsx! { ReadmeTab { readme: d.readme.clone() } },
                         _ => rsx! { OverviewTab { detail: d, repo: repo.clone(), tab } },
@@ -554,26 +559,97 @@ fn CommitRow(commit: Commit) -> Element {
 // ── Branches tab ─────────────────────────────────────────────────────────────
 
 #[component]
-fn BranchesTab(branches: Vec<Branch>) -> Element {
+fn BranchesTab(
+    branches: Vec<Branch>,
+    default_branch: String,
+    repo_path: String,
+    toasts: Signal<Vec<Toast>>,
+) -> Element {
+    let count = branches.len();
     rsx! {
-        div { class: "branches-list",
-            for b in branches.iter() {
-                div { class: if b.current { "branch-row current" } else { "branch-row" },
-                    span { dangerous_inner_html: "{icon_html(\"branch\", 14)}" }
-                    span { class: "branch-name mono", "{b.name}" }
-                    if b.current {
-                        span { class: "badge", "current" }
-                    }
-                    div { class: "branch-right",
-                        if b.ahead > 0 { span { class: "adds", "↑{b.ahead}" } }
-                        if b.behind > 0 { span { class: "dels", "↓{b.behind}" } }
-                        span { class: "branch-msg", "{b.last_msg}" }
-                        span { class: "branch-when", "{from_now(&b.when)}" }
+        div { class: "branches-tab",
+            div { class: "branches-tab-hdr",
+                span { class: "bt-hdr-ico", dangerous_inner_html: "{icon_html(\"branch\", 14)}" }
+                span { class: "bt-count mono", "{count}" }
+                span { class: "bt-label", "BRANCHES" }
+            }
+            div { class: "bt-list",
+                if branches.is_empty() {
+                    div { class: "empty-state", p { "No branches" } }
+                }
+                for b in branches.iter() {
+                    {
+                        let is_default = b.name == default_branch;
+                        let when = from_now(&b.when);
+                        let bname = b.name.clone();
+                        let bpath = repo_path.clone();
+                        let is_current = b.current;
+                        let ahead = b.ahead;
+                        let behind = b.behind;
+                        let last_msg = b.last_msg.clone();
+                        rsx! {
+                            div { class: "bt-row",
+                                // Icon box
+                                div { class: "bt-icon-box",
+                                    span { dangerous_inner_html: "{icon_html(\"branch\", 16)}" }
+                                }
+                                // Info
+                                div { class: "bt-info",
+                                    div { class: "bt-name-row",
+                                        span { class: "bt-name mono", "{bname}" }
+                                        if is_current {
+                                            span { class: "bt-badge bt-badge-current", "current" }
+                                        }
+                                        if is_default {
+                                            span { class: "bt-badge bt-badge-default", "default" }
+                                        }
+                                    }
+                                    if !last_msg.is_empty() {
+                                        div { class: "bt-sub",
+                                            span { "{last_msg}" }
+                                            if !when.is_empty() {
+                                                span { class: "bt-dot", "·" }
+                                                span { "{when}" }
+                                            }
+                                        }
+                                    }
+                                }
+                                // Right: ahead/behind + checkout
+                                div { class: "bt-right",
+                                    if ahead > 0 || behind > 0 {
+                                        div { class: "bt-sync",
+                                            if ahead > 0 {
+                                                span { class: "bt-ahead", "↑{ahead}" }
+                                            }
+                                            if behind > 0 {
+                                                span { class: "bt-behind", "↓{behind}" }
+                                            }
+                                        }
+                                    }
+                                    if !is_current {
+                                        button {
+                                            class: "bt-checkout-btn",
+                                            onclick: move |_| {
+                                                let p = bpath.clone();
+                                                let br = bname.clone();
+                                                spawn(async move {
+                                                    if let Some(r) = invoke::checkout_branch(p, br).await {
+                                                        let mut t = toasts.write();
+                                                        t.push(Toast::new(
+                                                            if r.success { "Checked out" } else { "Checkout failed" },
+                                                            &r.message,
+                                                        ));
+                                                    }
+                                                });
+                                            },
+                                            "Checkout"
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-            }
-            if branches.is_empty() {
-                div { class: "empty-state", p { "No branches" } }
             }
         }
     }

@@ -42,6 +42,7 @@ pub fn run() {
             commands::get_repo_detail,
             commands::get_commits,
             commands::list_recent_activity,
+            commands::checkout_branch,
             commands::get_status,
             commands::toggle_favorite,
             commands::update_description,

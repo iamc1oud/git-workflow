@@ -100,6 +100,12 @@ pub async fn open_folder(path: String) {
     let _ = call::<()>("open_folder", Args { path }).await;
 }
 
+pub async fn checkout_branch(path: String, branch: String) -> Option<SyncResult> {
+    #[derive(Serialize)]
+    struct Args { path: String, branch: String }
+    call("checkout_branch", Args { path, branch }).await
+}
+
 pub async fn list_recent_activity() -> Vec<crate::models::ActivityItem> {
     call::<Vec<crate::models::ActivityItem>>("list_recent_activity", ()).await.unwrap_or_default()
 }

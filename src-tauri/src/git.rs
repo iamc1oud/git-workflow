@@ -468,6 +468,20 @@ pub fn detect_languages(path: &str) -> Vec<Language> {
         .collect()
 }
 
+// ── Branch checkout ───────────────────────────────────────────────────────────
+
+pub fn checkout_branch(path: &str, branch: &str) -> Result<(), String> {
+    let repo = Repository::open(path).map_err(|e| e.message().to_string())?;
+    let obj = repo
+        .revparse_single(&format!("refs/heads/{}", branch))
+        .map_err(|e| e.message().to_string())?;
+    repo.checkout_tree(&obj, None)
+        .map_err(|e| e.message().to_string())?;
+    repo.set_head(&format!("refs/heads/{}", branch))
+        .map_err(|e| e.message().to_string())?;
+    Ok(())
+}
+
 // ── Directory scan ────────────────────────────────────────────────────────────
 
 pub fn scan_dir_for_repos(parent: &str) -> Vec<String> {

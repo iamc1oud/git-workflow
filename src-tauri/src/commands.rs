@@ -167,6 +167,14 @@ pub fn get_status(path: String) -> WorkingTreeStatus {
 }
 
 #[tauri::command]
+pub fn checkout_branch(path: String, branch: String) -> SyncResult {
+    match git::checkout_branch(&path, &branch) {
+        Ok(_) => SyncResult { success: true, message: format!("Switched to '{}'", branch) },
+        Err(e) => SyncResult { success: false, message: e },
+    }
+}
+
+#[tauri::command]
 pub fn toggle_favorite(repo_id: String, state: State<Mutex<AppState>>) -> bool {
     state.lock().unwrap().store.toggle_favorite(&repo_id)
 }
