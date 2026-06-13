@@ -67,8 +67,8 @@ body {
     var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
-  display: flex; align-items: flex-start; justify-content: center;
-  min-height: 100vh; padding: 26px;
+  display: flex; align-items: flex-start; justify-content: flex-start;
+  min-height: 100vh; padding: 0;
   overflow: auto;
 }
 #main { width: 100%; height: 100%; display: flex; align-items: stretch; justify-content: center; }
