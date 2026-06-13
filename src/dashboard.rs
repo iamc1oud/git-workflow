@@ -229,67 +229,109 @@ pub fn SettingsModal(
     toasts: Signal<Vec<Toast>>,
 ) -> Element {
     let mut new_name = use_signal(|| String::new());
-    let mut new_cmd = use_signal(|| String::new());
+    let mut new_path = use_signal(|| String::new());
 
     rsx! {
         div { class: "modal-overlay", onclick: move |_| on_close.call(()),
-            div { class: "modal", onclick: |e| e.stop_propagation(),
-                div { class: "modal-head",
-                    "Editor / IDE Settings"
-                    button { class: "tb-btn", onclick: move |_| on_close.call(()),
+            div { class: "modal sm-modal", onclick: |e| e.stop_propagation(),
+
+                // ── Header ────────────────────────────────────────────────────
+                div { class: "modal-h",
+                    div { class: "sm-hdr-icon",
+                        span { dangerous_inner_html: "{icon_html(\"code\", 18)}" }
+                    }
+                    span { class: "modal-h-title", "Editors & Tools" }
+                    button { class: "sm-close", onclick: move |_| on_close.call(()),
                         span { dangerous_inner_html: "{icon_html(\"x\", 16)}" }
                     }
                 }
-                div { class: "modal-body",
-                    div { class: "eds-list",
-                        for ed in editors.iter() {
-                            div { class: "ed-row",
-                                span {
-                                    class: "ed-mark",
-                                    style: "background:{ed.accent}",
-                                    "{ed.mark}"
+
+                // ── Body ──────────────────────────────────────────────────────
+                div { class: "modal-b",
+
+                    // Subtitle
+                    div { class: "sm-subtitle",
+                        span { class: "sm-subtitle-ico", dangerous_inner_html: "{icon_html(\"sparkle\", 13)}" }
+                        span {
+                            "Auto-detected from "
+                            span { class: "mono sm-path-chip", "/Applications" }
+                            ". Toggle off to hide, or add any editor by its path."
+                        }
+                    }
+
+                    // Editor list
+                    for ed in editors.iter() {
+                        div { class: "ide-row",
+                            // Icon box
+                            div { class: "sm-ed-icon", style: "background:{ed.accent}",
+                                "{ed.mark}"
+                            }
+                            // Info
+                            div { style: "flex:1;min-width:0",
+                                div { class: "ide-row nm", "{ed.name}" }
+                                div { class: "ide-row pa",
+                                    if ed.path.is_empty() || !ed.detected {
+                                        "Not installed — add manually"
+                                    } else {
+                                        "{ed.path}"
+                                    }
                                 }
-                                span { class: "ed-name", "{ed.name}" }
-                                span { class: "mono ed-cmd", "{ed.cmd}" }
+                            }
+                            // Toggle
+                            div { class: "ide-row rt",
                                 if ed.detected {
-                                    span { class: "badge", "auto" }
+                                    button { class: "sm-toggle sm-toggle-on",
+                                        span { "✓" }
+                                        "Enabled"
+                                    }
+                                } else {
+                                    button { class: "sm-toggle sm-toggle-off",
+                                        "Enable"
+                                    }
                                 }
                             }
                         }
                     }
-                    div { class: "ed-add",
-                        div { class: "dash-sec-h", "Add Custom Editor" }
+                }
+
+                // ── Footer: add editor ────────────────────────────────────────
+                div { class: "modal-foot",
+                    div { class: "sm-add-label", "ADD EDITOR BY PATH" }
+                    div { class: "sm-add-row",
                         input {
-                            class: "inp",
-                            placeholder: "Name (e.g. Helix)",
+                            class: "field sm-name-inp",
+                            placeholder: "Name",
                             value: "{new_name}",
                             oninput: move |e| new_name.set(e.value().clone()),
                         }
                         input {
-                            class: "inp mono",
-                            placeholder: "Command (e.g. hx)",
-                            value: "{new_cmd}",
-                            oninput: move |e| new_cmd.set(e.value().clone()),
+                            class: "field sm-path-inp mono",
+                            placeholder: "/Applications/MyEditor.app",
+                            value: "{new_path}",
+                            oninput: move |e| new_path.set(e.value().clone()),
                         }
                         button {
-                            class: "btn-primary",
+                            class: "btn-primary sm-add-btn",
                             onclick: move |_| {
                                 let name = new_name.read().trim().to_string();
-                                let cmd = new_cmd.read().trim().to_string();
-                                if name.is_empty() || cmd.is_empty() { return; }
+                                let path = new_path.read().trim().to_string();
+                                if name.is_empty() || path.is_empty() { return; }
                                 let id = format!("custom_{}", name.to_lowercase().replace(' ', "_"));
-                                let mark = {
-                                    let up = name.to_uppercase();
-                                    up.chars().take(2).collect::<String>()
-                                };
+                                let cmd = std::path::Path::new(&path)
+                                    .file_stem()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or(&name)
+                                    .to_lowercase()
+                                    .replace(' ', "-");
                                 spawn(async move {
-                                    invoke::add_custom_editor(id, name.clone(), String::new(), cmd.clone()).await;
+                                    invoke::add_custom_editor(id, name.clone(), path, cmd).await;
                                     let mut t = toasts.write();
                                     t.push(Toast::new("Editor added", &name));
                                 });
                                 new_name.set(String::new());
-                                new_cmd.set(String::new());
+                                new_path.set(String::new());
                             },
+                            span { dangerous_inner_html: "{icon_html(\"plus\", 14)}" }
                             "Add"
                         }
                     }
