@@ -303,6 +303,8 @@ body {
 .tab.on, .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .tab .tcount { font-family: var(--font-mono); font-size: 11px; background: var(--s3); color: var(--text-3); border-radius: 6px; padding: 2px 6px; }
 .tab.on .tcount, .tab.active .tcount { background: var(--accent-bg); color: var(--accent-2); }
+.tab-ico { display: grid; place-items: center; line-height: 0; flex: none; opacity: 0.6; }
+.tab:hover .tab-ico, .tab.active .tab-ico { opacity: 1; }
 
 .detail-body, .tab-body { flex: 1; min-height: 0; overflow-y: auto; }
 .pane { padding: 22px 24px 28px; }
@@ -333,6 +335,24 @@ body {
 .commit-hash { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); background: var(--s3); border-radius: 5px; padding: 2px 6px; }
 .diffstat { font-family: var(--font-mono); font-size: 11px; display: flex; gap: 6px; flex: none; }
 .diffstat .add { color: var(--ok); } .diffstat .del { color: var(--danger); }
+
+/* commits tab (full view) */
+.commits-tab { display: flex; flex-direction: column; }
+.commits-tab-hdr { display: flex; align-items: center; gap: 8px; padding: 14px 20px; background: var(--s2); border-bottom: 1px solid var(--border); }
+.ct-hdr-ico { display: grid; place-items: center; line-height: 0; color: var(--text-3); flex: none; }
+.ct-count { font-size: 13px; font-weight: 700; color: var(--text-2); }
+.ct-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); }
+.ct-branch { font-size: 12.5px; font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; }
+.ct-list { display: flex; flex-direction: column; }
+.ct-row { display: flex; align-items: center; gap: 13px; padding: 13px 20px; transition: background var(--transition-fast); cursor: default; }
+.ct-row + .ct-row { border-top: 1px solid var(--border); }
+.ct-row:hover { background: var(--s2); }
+.ct-avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-ui); font-size: 13px; font-weight: 700; color: #fff; flex: none; box-shadow: 0 2px 8px -2px rgba(0,0,0,0.35); }
+.ct-body { flex: 1; min-width: 0; }
+.ct-msg { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.ct-meta { display: flex; align-items: center; gap: 7px; margin-top: 3px; font-size: 11.5px; color: var(--text-3); }
+.ct-hash { background: var(--s3); border-radius: 5px; padding: 1px 7px; font-size: 10.5px; color: var(--text-3); font-family: var(--font-mono); }
+.ct-stats { display: flex; gap: 8px; flex: none; font-family: var(--font-mono); font-size: 12px; font-weight: 600; min-width: 80px; justify-content: flex-end; }
 
 /* avatar */
 .av { border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff; font-family: var(--font-ui); flex: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }

@@ -31,6 +31,14 @@ pub fn DetailPanel(
     });
 
     let t = *tab.read();
+    let (commit_count, branch_count, contrib_count) = {
+        let d = detail.read();
+        (
+            d.as_ref().map_or(0, |d| d.commits.len()),
+            d.as_ref().map_or(0, |d| d.branches.len()),
+            d.as_ref().map_or(0, |d| d.contributors.len()),
+        )
+    };
 
     rsx! {
         div { class: "detail",
@@ -43,11 +51,21 @@ pub fn DetailPanel(
 
             // Tabs
             div { class: "tabs",
-                for (id, label) in [("overview","Overview"),("commits","Commits"),("branches","Branches"),("contribs","Contributors"),("readme","README")] {
+                for (id, label, icon, count) in [
+                    ("overview",  "Overview",     "eye",    0usize),
+                    ("commits",   "Commits",       "commit", commit_count),
+                    ("branches",  "Branches",      "branch", branch_count),
+                    ("contribs",  "Contributors",  "users",  contrib_count),
+                    ("readme",    "README",         "book",   0),
+                ] {
                     button {
                         class: if t == id { "tab active" } else { "tab" },
                         onclick: move |_| tab.set(id),
+                        span { class: "tab-ico", dangerous_inner_html: "{icon_html(icon, 14)}" }
                         "{label}"
+                        if count > 0 {
+                            span { class: "tcount", "{count}" }
+                        }
                     }
                 }
             }
@@ -60,7 +78,7 @@ pub fn DetailPanel(
                     }
                 } else if let Some(d) = detail.read().clone() {
                     match t {
-                        "commits" => rsx! { CommitsTab { commits: d.commits.clone() } },
+                        "commits" => rsx! { CommitsTab { commits: d.commits.clone(), branch: repo.branch.clone() } },
                         "branches" => rsx! { BranchesTab { branches: d.branches.clone() } },
                         "contribs" => rsx! { ContribsTab { contributors: d.contributors.clone() } },
                         "readme" => rsx! { ReadmeTab { readme: d.readme.clone() } },
@@ -477,14 +495,23 @@ fn OvCommitRow(commit: Commit) -> Element {
 // ── Commits tab ───────────────────────────────────────────────────────────────
 
 #[component]
-fn CommitsTab(commits: Vec<Commit>) -> Element {
+fn CommitsTab(commits: Vec<Commit>, branch: String) -> Element {
+    let count = commits.len();
     rsx! {
-        div { class: "commits-list",
-            for c in commits.iter() {
-                CommitRow { commit: c.clone() }
+        div { class: "commits-tab",
+            div { class: "commits-tab-hdr",
+                span { class: "ct-hdr-ico", dangerous_inner_html: "{icon_html(\"commit\", 14)}" }
+                span { class: "ct-count mono", "{count}" }
+                span { class: "ct-label", "COMMITS ON" }
+                span { class: "ct-branch mono", "{branch}" }
             }
-            if commits.is_empty() {
-                div { class: "empty-state", p { "No commits" } }
+            div { class: "ct-list",
+                if commits.is_empty() {
+                    div { class: "empty-state", p { "No commits" } }
+                }
+                for c in commits.iter() {
+                    CommitRow { commit: c.clone() }
+                }
             }
         }
     }
@@ -494,25 +521,31 @@ fn CommitsTab(commits: Vec<Commit>) -> Element {
 fn CommitRow(commit: Commit) -> Element {
     let hash_short = commit.hash.chars().take(7).collect::<String>();
     let when = from_now(&commit.date);
+    let initials = commit.author
+        .split_whitespace()
+        .filter_map(|w| w.chars().next())
+        .take(2)
+        .collect::<String>()
+        .to_uppercase();
+    let colors = ["#6366F1","#EC4899","#14B8A6","#F59E0B","#8B5CF6","#06B6D4","#F43F5E","#22C55E"];
+    let av_color = colors[commit.author.bytes().fold(0usize, |a, b| a.wrapping_add(b as usize)) % colors.len()];
+
     rsx! {
-        div { class: "commit",
-            div { class: "commit-left",
-                span { class: "commit-hash mono", "{hash_short}" }
-                div { class: "commit-info",
-                    span { class: "commit-msg", "{commit.msg}" }
-                    span { class: "commit-meta",
-                        "{commit.author}"
-                        if !when.is_empty() { " · {when}" }
+        div { class: "ct-row",
+            div { class: "ct-avatar", style: "background:{av_color}", "{initials}" }
+            div { class: "ct-body",
+                div { class: "ct-msg", "{commit.msg}" }
+                div { class: "ct-meta",
+                    span { "{commit.author}" }
+                    span { class: "ct-hash mono", "{hash_short}" }
+                    if !when.is_empty() {
+                        span { "· {when}" }
                     }
                 }
             }
-            div { class: "commit-stats",
-                if commit.additions > 0 {
-                    span { class: "adds", "+{commit.additions}" }
-                }
-                if commit.deletions > 0 {
-                    span { class: "dels", "-{commit.deletions}" }
-                }
+            div { class: "ct-stats",
+                span { class: "adds", "+{commit.additions}" }
+                span { class: "dels", "-{commit.deletions}" }
             }
         }
     }
