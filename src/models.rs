@@ -147,6 +147,18 @@ impl Selection {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ActivityItem {
+    pub repo_id: String,
+    pub repo_name: String,
+    pub hash: String,
+    pub msg: String,
+    pub author: String,
+    pub date: Option<String>,
+    pub additions: u32,
+    pub deletions: u32,
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 pub fn glyph_for(name: &str) -> String {

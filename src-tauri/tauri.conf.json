@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "git-workflow",
+  "productName": "Git Workflow",
   "version": "0.1.0",
   "identifier": "com.ajay.git-workflow",
   "build": {
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "git-workflow",
+        "title": "Git Workflow",
         "width": 1280,
         "height": 720,
         "minWidth": 960,

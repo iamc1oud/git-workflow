@@ -41,6 +41,7 @@ pub fn run() {
             commands::remove_repo,
             commands::get_repo_detail,
             commands::get_commits,
+            commands::list_recent_activity,
             commands::get_status,
             commands::toggle_favorite,
             commands::update_description,

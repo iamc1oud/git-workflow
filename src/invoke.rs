@@ -99,3 +99,7 @@ pub async fn open_folder(path: String) {
     struct Args { path: String }
     let _ = call::<()>("open_folder", Args { path }).await;
 }
+
+pub async fn list_recent_activity() -> Vec<crate::models::ActivityItem> {
+    call::<Vec<crate::models::ActivityItem>>("list_recent_activity", ()).await.unwrap_or_default()
+}

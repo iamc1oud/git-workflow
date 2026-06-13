@@ -107,3 +107,15 @@ pub struct SyncResult {
     pub success: bool,
     pub message: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityItem {
+    pub repo_id: String,
+    pub repo_name: String,
+    pub hash: String,
+    pub msg: String,
+    pub author: String,
+    pub date: Option<String>,
+    pub additions: u32,
+    pub deletions: u32,
+}

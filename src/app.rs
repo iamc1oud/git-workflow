@@ -3,6 +3,7 @@
 use dioxus::prelude::*;
 
 use crate::{
+    activity::ActivityView,
     dashboard::{Dashboard, SettingsModal},
     icons::icon_html,
     invoke,
@@ -169,7 +170,7 @@ pub fn App() -> Element {
                         },
                     }
                 } else if is_activity {
-                    ActivityView { repos: repos.read().clone() }
+                    ActivityView {}
                 } else {
                     RepoList {
                         repos: visible_repos,
@@ -244,41 +245,3 @@ pub fn App() -> Element {
     }
 }
 
-// ── Activity view ─────────────────────────────────────────────────────────────
-
-#[component]
-fn ActivityView(repos: Vec<RepoSummary>) -> Element {
-    let mut sorted = repos;
-    sorted.sort_by(|a, b| b.last_commit_at.cmp(&a.last_commit_at));
-
-    rsx! {
-        div { class: "list",
-            div { class: "list-bar",
-                div { class: "list-count", "Activity Feed" }
-            }
-            div { class: "activity-feed",
-                for r in sorted.iter() {
-                    div { class: "activity-row",
-                        div { class: "repo-glyph sm", style: "background:#7C6BFF",
-                            "{glyph_for(&r.name)}"
-                        }
-                        div { class: "act-info",
-                            span { class: "act-name", "{r.name}" }
-                            span { class: "act-branch mono",
-                                span { dangerous_inner_html: "{icon_html(\"branch\", 10)}" }
-                                "{r.branch}"
-                            }
-                        }
-                        span { class: "act-when", "{from_now(&r.last_commit_at)}" }
-                    }
-                }
-                if sorted.is_empty() {
-                    div { class: "empty-state",
-                        span { dangerous_inner_html: "{icon_html(\"activity\", 36)}" }
-                        p { "No repos yet" }
-                    }
-                }
-            }
-        }
-    }
-}

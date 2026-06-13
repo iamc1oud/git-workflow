@@ -135,6 +135,33 @@ pub fn get_commits(path: String, branch: String) -> Vec<Commit> {
 }
 
 #[tauri::command]
+pub fn list_recent_activity(state: State<Mutex<AppState>>) -> Vec<ActivityItem> {
+    let records: Vec<RepoRecord> = state.lock().unwrap().store.data.repos.clone();
+    let summaries: Vec<RepoSummary> = records.iter().map(build_summary).collect();
+
+    let mut items: Vec<ActivityItem> = Vec::new();
+    for summary in &summaries {
+        let commits = git::get_commits(&summary.path, &summary.branch);
+        for commit in commits.into_iter().take(15) {
+            items.push(ActivityItem {
+                repo_id: summary.id.clone(),
+                repo_name: summary.name.clone(),
+                hash: commit.hash,
+                msg: commit.msg,
+                author: commit.author,
+                date: commit.date,
+                additions: commit.additions,
+                deletions: commit.deletions,
+            });
+        }
+    }
+
+    items.sort_by(|a, b| b.date.cmp(&a.date));
+    items.truncate(150);
+    items
+}
+
+#[tauri::command]
 pub fn get_status(path: String) -> WorkingTreeStatus {
     git::get_status(&path)
 }
