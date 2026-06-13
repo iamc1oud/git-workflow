@@ -83,11 +83,12 @@ body {
 
 /* ============ WINDOW CHROME ============ */
 .win {
-  width: min(1340px, 100%); height: min(860px, 100%);
+  /* Use full-bleed layout: remove outer chrome so app fills container */
+  width: 100%; height: 100vh;
   background: var(--s0);
-  border: 1px solid var(--border-strong);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   display: flex; flex-direction: column;
   overflow: hidden; position: relative;
 }
